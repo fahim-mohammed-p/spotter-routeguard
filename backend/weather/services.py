@@ -33,6 +33,22 @@ def _round_to_nearest_hour(dt: datetime) -> datetime:
     return utc_dt.replace(minute=0, second=0, microsecond=0)
 
 
+DEFAULT_HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "SpotterRouteGuard/1.0",
+}
+
+
+def _extract_open_meteo_error(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+        if isinstance(payload, dict) and payload.get("reason"):
+            return str(payload["reason"])
+    except ValueError:
+        pass
+    return (response.text or "").strip()[:200] or "No response body"
+
+
 class OpenMeteoClient:
     """Client for Open-Meteo hourly forecast data in imperial truck-routing units."""
 
@@ -42,8 +58,17 @@ class OpenMeteoClient:
         timeout_seconds: float | None = None,
         cache_ttl_seconds: int | None = None,
     ):
-        self.base_url = (base_url or settings.OPEN_METEO_BASE_URL).rstrip("/")
-        self.timeout = timeout_seconds or settings.EXTERNAL_API_TIMEOUT_SECONDS
+        self.base_url = (
+            (base_url or settings.OPEN_METEO_BASE_URL)
+            .strip()
+            .rstrip("/")
+            .removesuffix("/forecast")
+        )
+        self.timeout = float(
+            timeout_seconds
+            if timeout_seconds is not None
+            else settings.EXTERNAL_API_TIMEOUT_SECONDS
+        )
         self.cache_ttl = (
             cache_ttl_seconds
             if cache_ttl_seconds is not None
@@ -58,10 +83,16 @@ class OpenMeteoClient:
             if cached is not None:
                 return cached
 
+        probe_timeout = max(self.timeout, 10.0)
+        url = f"{self.base_url}/forecast"
         try:
-            with httpx.Client(timeout=min(self.timeout, 5.0)) as client:
+            with httpx.Client(
+                timeout=probe_timeout,
+                headers=DEFAULT_HEADERS,
+                transport=httpx.HTTPTransport(retries=1),
+            ) as client:
                 response = client.get(
-                    f"{self.base_url}/forecast",
+                    url,
                     params={
                         "latitude": "41.88",
                         "longitude": "-87.63",
@@ -69,20 +100,81 @@ class OpenMeteoClient:
                         "forecast_days": 1,
                     },
                 )
-            ok = response.status_code == 200 and "hourly" in response.json()
-            result = {
-                "connected": ok,
-                "status": "connected" if ok else "unreachable",
-                "error": None if ok else f"Open-Meteo returned HTTP {response.status_code}.",
-            }
-        except (httpx.RequestError, ValueError):
+        except httpx.TimeoutException as exc:
+            err_msg = f"Open-Meteo health probe timed out after {probe_timeout:.0f}s ({type(exc).__name__}: {exc})."
+            logger.warning(err_msg)
             result = {
                 "connected": False,
                 "status": "unreachable",
-                "error": "Unable to reach Open-Meteo forecast API.",
+                "error": err_msg,
             }
+            cache.set(cache_key, result, timeout=60)
+            return result
+        except httpx.RequestError as exc:
+            err_msg = f"Open-Meteo connection failed ({type(exc).__name__}: {exc})."
+            logger.warning(err_msg)
+            result = {
+                "connected": False,
+                "status": "unreachable",
+                "error": err_msg,
+            }
+            cache.set(cache_key, result, timeout=60)
+            return result
 
-        cache.set(cache_key, result, timeout=300 if result["connected"] else 60)
+        if response.status_code == 429:
+            reason = _extract_open_meteo_error(response)
+            err_msg = f"Open-Meteo returned HTTP 429 ({reason})."
+            logger.warning(err_msg)
+            result = {
+                "connected": False,
+                "status": "rate_limited",
+                "error": err_msg,
+            }
+            cache.set(cache_key, result, timeout=60)
+            return result
+
+        if response.status_code >= 400:
+            reason = _extract_open_meteo_error(response)
+            err_msg = f"Open-Meteo returned HTTP {response.status_code}: {reason}"
+            logger.warning(err_msg)
+            result = {
+                "connected": False,
+                "status": "unreachable",
+                "error": err_msg,
+            }
+            cache.set(cache_key, result, timeout=60)
+            return result
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            err_msg = f"Open-Meteo returned invalid JSON ({exc})."
+            logger.warning(err_msg)
+            result = {
+                "connected": False,
+                "status": "unreachable",
+                "error": err_msg,
+            }
+            cache.set(cache_key, result, timeout=60)
+            return result
+
+        if not isinstance(payload, dict) or ("hourly" not in payload and "current" not in payload):
+            err_msg = "Open-Meteo response missing expected forecast data."
+            logger.warning("%s keys=%s", err_msg, list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__)
+            result = {
+                "connected": False,
+                "status": "unreachable",
+                "error": err_msg,
+            }
+            cache.set(cache_key, result, timeout=60)
+            return result
+
+        result = {
+            "connected": True,
+            "status": "connected",
+            "error": None,
+        }
+        cache.set(cache_key, result, timeout=300)
         return result
 
     def fetch_forecasts_for_points(
@@ -159,20 +251,28 @@ class OpenMeteoClient:
 
         url = f"{self.base_url}/forecast"
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(
+                timeout=self.timeout,
+                headers=DEFAULT_HEADERS,
+                transport=httpx.HTTPTransport(retries=1),
+            ) as client:
                 response = client.get(url, params=params)
         except httpx.TimeoutException as exc:
+            logger.warning("Open-Meteo batch forecast timed out: %s", exc)
             raise ExternalAPITimeoutError(
                 detail="Open-Meteo forecast service timed out. Please try again."
             ) from exc
         except httpx.RequestError as exc:
+            logger.warning("Open-Meteo batch request error (%s): %s", type(exc).__name__, exc)
             raise ExternalAPIError(
                 detail="Unable to reach Open-Meteo forecast service."
             ) from exc
 
         if response.status_code >= 400:
+            reason = _extract_open_meteo_error(response)
+            logger.warning("Open-Meteo batch HTTP %s: %s", response.status_code, reason)
             raise ExternalAPIError(
-                detail=f"Open-Meteo returned HTTP {response.status_code}.",
+                detail=f"Open-Meteo returned HTTP {response.status_code}: {reason}",
                 code="open_meteo_http_error",
             )
 

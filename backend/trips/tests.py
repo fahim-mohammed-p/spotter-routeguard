@@ -41,6 +41,7 @@ class HealthCheckTests(TestCase):
         self.assertTrue(response.data["services"]["openrouteservice_connected"])
         self.assertEqual(response.data["services"]["openrouteservice_status"], "connected")
         self.assertEqual(response.data["services"]["open_meteo_status"], "connected")
+        self.assertIsNone(response.data["services"]["open_meteo_error"])
 
     @patch("trips.views.OpenMeteoClient.check_connection")
     @patch("trips.views.OpenRouteServiceClient.check_connection")

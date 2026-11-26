@@ -62,6 +62,7 @@ def health_check(request: Request) -> Response:
                 "openrouteservice_error": ors_health["error"],
                 "open_meteo_connected": om_health["connected"],
                 "open_meteo_status": om_health["status"],
+                "open_meteo_error": om_health["error"],
                 "open_meteo_base_url": settings.OPEN_METEO_BASE_URL,
             },
         },

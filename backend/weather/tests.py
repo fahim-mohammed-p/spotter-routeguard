@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest.mock import MagicMock, patch
 
+import httpx
 from django.core.cache import cache
 from django.test import TestCase
 
@@ -127,3 +128,64 @@ class OpenMeteoTests(TestCase):
         self.assertEqual(len(cp_valid["raw_hourly_timeline"]), 49)
         self.assertTrue(cp_valid["raw_hourly_timeline"][0]["forecast_available"])
         self.assertFalse(cp_valid["raw_hourly_timeline"][1]["forecast_available"])
+
+    @patch("weather.services.httpx.Client")
+    def test_check_connection_success_uses_cache_unless_verified(self, mock_httpx_client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"hourly": {"time": ["2026-11-26T12:00"], "temperature_2m": [42.0]}}
+        mock_http = MagicMock()
+        mock_http.get.return_value = mock_resp
+        mock_httpx_client.return_value.__enter__.return_value = mock_http
+
+        client = OpenMeteoClient()
+        res1 = client.check_connection()
+        self.assertTrue(res1["connected"])
+        self.assertEqual(res1["status"], "connected")
+        self.assertIsNone(res1["error"])
+        self.assertEqual(mock_http.get.call_count, 1)
+
+        res2 = client.check_connection()
+        self.assertTrue(res2["connected"])
+        self.assertEqual(mock_http.get.call_count, 1)
+
+        res3 = client.check_connection(verify=True)
+        self.assertTrue(res3["connected"])
+        self.assertEqual(mock_http.get.call_count, 2)
+
+    @patch("weather.services.httpx.Client")
+    def test_check_connection_timeout_captures_exception_details(self, mock_httpx_client):
+        mock_http = MagicMock()
+        mock_http.get.side_effect = httpx.ReadTimeout("timed out reading forecast")
+        mock_httpx_client.return_value.__enter__.return_value = mock_http
+
+        client = OpenMeteoClient(timeout_seconds=15.0)
+        res = client.check_connection(verify=True)
+        self.assertFalse(res["connected"])
+        self.assertEqual(res["status"], "unreachable")
+        self.assertIn("ReadTimeout", res["error"])
+        self.assertIn("timed out reading forecast", res["error"])
+
+    @patch("weather.services.httpx.Client")
+    def test_check_connection_failure_and_http_error_capture_details(self, mock_httpx_client):
+        mock_http = MagicMock()
+        mock_http.get.side_effect = httpx.ConnectError("TLS handshake failed")
+        mock_httpx_client.return_value.__enter__.return_value = mock_http
+
+        client = OpenMeteoClient()
+        res_conn = client.check_connection(verify=True)
+        self.assertFalse(res_conn["connected"])
+        self.assertEqual(res_conn["status"], "unreachable")
+        self.assertIn("ConnectError", res_conn["error"])
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 429
+        mock_resp.json.return_value = {"reason": "Hourly API request limit exceeded."}
+        mock_http.get.side_effect = None
+        mock_http.get.return_value = mock_resp
+
+        res_429 = client.check_connection(verify=True)
+        self.assertFalse(res_429["connected"])
+        self.assertEqual(res_429["status"], "rate_limited")
+        self.assertIn("429", res_429["error"])
+        self.assertIn("Hourly API request limit exceeded", res_429["error"])
