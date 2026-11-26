@@ -218,3 +218,16 @@ class TripValidationAndEndpointTests(TestCase):
         del_resp = self.client.delete(reverse("route-detail", args=[trip_id]))
         self.assertEqual(del_resp.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Trip.objects.count(), 0)
+
+    def test_api_prefix_routes_are_mounted_under_api(self):
+        self.assertEqual(reverse("api-health"), "/api/health/")
+        self.assertEqual(reverse("trip-list"), "/api/trips/")
+        self.assertEqual(reverse("route-plan"), "/api/routes/plan/")
+
+        trips_resp = self.client.get("/api/trips/")
+        self.assertEqual(trips_resp.status_code, status.HTTP_200_OK)
+        self.assertIn("stats", trips_resp.data)
+        self.assertIn("trips", trips_resp.data)
+
+        unprefixed = self.client.get("/trips/")
+        self.assertEqual(unprefixed.status_code, status.HTTP_404_NOT_FOUND)

@@ -232,3 +232,52 @@ describe("AppShell system health indicators", () => {
     expect(screen.getByText("Key Needed")).toBeInTheDocument();
   });
 });
+
+describe("API base URL resolution and endpoint paths", () => {
+  it("normalizes bare backend origins to include /api without duplicating /api", () => {
+    expect(api.resolveApiBaseUrl(undefined)).toBe("/api");
+    expect(api.resolveApiBaseUrl("")).toBe("/api");
+    expect(api.resolveApiBaseUrl("https://spotter-routeguard.onrender.com")).toBe(
+      "https://spotter-routeguard.onrender.com/api"
+    );
+    expect(api.resolveApiBaseUrl("https://spotter-routeguard.onrender.com/")).toBe(
+      "https://spotter-routeguard.onrender.com/api"
+    );
+    expect(api.resolveApiBaseUrl("https://spotter-routeguard.onrender.com/api")).toBe(
+      "https://spotter-routeguard.onrender.com/api"
+    );
+    expect(api.resolveApiBaseUrl("https://spotter-routeguard.onrender.com/api/")).toBe(
+      "https://spotter-routeguard.onrender.com/api"
+    );
+  });
+
+  it("calls expected backend endpoint paths relative to /api baseURL", async () => {
+    const getSpy = vi.spyOn(api.apiClient, "get").mockResolvedValue({ data: {} });
+    const postSpy = vi.spyOn(api.apiClient, "post").mockResolvedValue({ data: {} });
+    const deleteSpy = vi.spyOn(api.apiClient, "delete").mockResolvedValue({});
+
+    await api.fetchHealth();
+    expect(getSpy).toHaveBeenCalledWith("/health/", { timeout: 10000 });
+
+    await api.fetchTrips();
+    expect(getSpy).toHaveBeenCalledWith("/trips/");
+
+    await api.planRoute({ origin: "A", destination: "B" });
+    expect(postSpy).toHaveBeenCalledWith("/routes/plan/", { origin: "A", destination: "B" });
+
+    await api.fetchTripDetail("trip-123");
+    expect(getSpy).toHaveBeenCalledWith("/routes/trip-123/");
+
+    await api.fetchRouteWeatherTimeline("trip-123", "route-456");
+    expect(getSpy).toHaveBeenCalledWith("/routes/trip-123/weather/", {
+      params: { route_id: "route-456" },
+    });
+
+    await api.deleteTrip("trip-123");
+    expect(deleteSpy).toHaveBeenCalledWith("/routes/trip-123/");
+
+    getSpy.mockRestore();
+    postSpy.mockRestore();
+    deleteSpy.mockRestore();
+  });
+});
