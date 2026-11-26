@@ -1,0 +1,38 @@
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Databases & logs
+*.sqlite3
+*.db
+*.log
+
+# Node / Vite / React
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

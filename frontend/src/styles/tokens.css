@@ -1,0 +1,54 @@
+:root {
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-hover: #f8fafc;
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: #2563eb;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-subtle: #eff6ff;
+  --accent-primary-border: #bfdbfe;
+
+  --risk-low: #10b981;
+  --risk-low-bg: #ecfdf5;
+  --risk-low-border: #a7f3d0;
+  --risk-low-text: #047857;
+
+  --risk-moderate: #eab308;
+  --risk-moderate-bg: #fefce8;
+  --risk-moderate-border: #fde047;
+  --risk-moderate-text: #a16207;
+
+  --risk-high: #f97316;
+  --risk-high-bg: #fff7ed;
+  --risk-high-border: #fdba74;
+  --risk-high-text: #c2410c;
+
+  --risk-severe: #ef4444;
+  --risk-severe-bg: #fef2f2;
+  --risk-severe-border: #fecaca;
+  --risk-severe-text: #dc2626;
+
+  --risk-no-travel: #991b1b;
+  --risk-no-travel-bg: #fee2e2;
+  --risk-no-travel-border: #f87171;
+  --risk-no-travel-text: #7f1d1d;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-elevated: 0 10px 25px rgba(15, 23, 42, 0.08);
+  --sidebar-width: 248px;
+}
