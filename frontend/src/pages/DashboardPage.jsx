@@ -13,6 +13,7 @@ import {
 import { ArrowRight, Compass, Layers, Route, ShieldCheck, Truck } from "lucide-react";
 import { fetchTrips, normalizeApiError } from "../services/api";
 import RiskBadge from "../components/RiskBadge";
+import TruckPhoto from "../components/TruckPhoto";
 import { formatDateTime, formatDistance, formatDuration, formatWeight } from "../utils/formatters";
 import { getRiskStyle } from "../utils/riskStyles";
 
@@ -64,6 +65,29 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      <div className="sg-card freight-banner-card">
+        <div className="freight-banner-content">
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <span className="badge text-bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold">
+              US Freight Corridor Intelligence
+            </span>
+          </div>
+          <div className="fw-semibold" style={{ fontSize: "0.95rem" }}>
+            Weather-Aware HGV Dispatch Across American Interstate Lanes
+          </div>
+          <div className="text-secondary small mt-1">
+            Monitor load-adjusted wind exposure, precipitation hazards, and alternate corridors before dispatch.
+          </div>
+        </div>
+        <div className="freight-banner-media d-none d-md-block">
+          <TruckPhoto
+            src="/images/interstate-corridor.jpg"
+            alt="American freight semi-trucks hauling trailers along a US interstate highway"
+            eager
+          />
+        </div>
+      </div>
+
       {error && (
         <div className="advisory-banner caution">
           <div className="small">
@@ -73,9 +97,11 @@ export default function DashboardPage() {
       )}
 
       {loading ? (
-        <div className="sg-card p-5 text-center">
-          <div className="spinner-border text-primary mb-2" role="status" />
-          <div className="small text-secondary">Loading dispatch history...</div>
+        <div className="sg-card p-4 text-center" aria-live="polite">
+          <div className="sg-inline-pulse mx-auto mb-2" />
+          <div className="fw-medium small text-secondary">
+            Loading dispatch metrics...
+          </div>
         </div>
       ) : trips.length === 0 ? (
         <div className="sg-card p-5 text-center">

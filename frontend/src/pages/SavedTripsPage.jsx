@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Bookmark, Compass, Trash2 } from "lucide-react";
 import { deleteTrip, fetchTrips, normalizeApiError } from "../services/api";
 import RiskBadge from "../components/RiskBadge";
+import TruckPhoto from "../components/TruckPhoto";
 import { formatDateTime, formatDistance, formatDuration, formatWeight } from "../utils/formatters";
 
 export default function SavedTripsPage() {
@@ -39,11 +40,19 @@ export default function SavedTripsPage() {
   return (
     <div className="d-flex flex-column gap-4">
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div>
-          <h1 className="h4 fw-bold mb-1">Saved Trips</h1>
-          <p className="text-secondary small mb-0">
-            Reopen any evaluated truck trip to inspect routes, checkpoints, and 48-hour forecast timelines.
-          </p>
+        <div className="d-flex align-items-center gap-3">
+          <TruckPhoto
+            src="/images/freightliner-highway.jpg"
+            alt="American Freightliner semi-truck hauling dry van trailer on US highway"
+            className="trips-header-thumb d-none d-sm-block"
+            eager
+          />
+          <div>
+            <h1 className="h4 fw-bold mb-1">Saved Trips</h1>
+            <p className="text-secondary small mb-0">
+              Reopen any evaluated truck trip to inspect routes, checkpoints, and 48-hour forecast timelines.
+            </p>
+          </div>
         </div>
         <Link to="/planner" className="btn-sg-primary text-decoration-none">
           <Compass size={16} />
@@ -58,9 +67,11 @@ export default function SavedTripsPage() {
       )}
 
       {loading ? (
-        <div className="sg-card p-5 text-center">
-          <div className="spinner-border text-primary mb-2" role="status" />
-          <div className="small text-secondary">Loading saved trips...</div>
+        <div className="sg-card p-4 text-center" aria-live="polite">
+          <div className="sg-inline-pulse mx-auto mb-2" />
+          <div className="fw-medium small text-secondary">
+            Loading saved trips...
+          </div>
         </div>
       ) : trips.length === 0 ? (
         <div className="sg-card p-5 text-center">
@@ -94,11 +105,20 @@ export default function SavedTripsPage() {
                   return (
                     <tr key={t.id}>
                       <td>
-                        <div className="fw-semibold">
-                          {t.origin_label} → {t.destination_label}
-                        </div>
-                        <div className="text-muted mono" style={{ fontSize: "0.72rem" }}>
-                          Created {formatDateTime(t.created_at)}
+                        <div className="d-flex align-items-center gap-2">
+                          <TruckPhoto
+                            src="/images/freightliner-highway.jpg"
+                            alt={`US semi-truck corridor for ${t.origin_label} to ${t.destination_label}`}
+                            className="trip-row-thumb d-none d-sm-block"
+                          />
+                          <div>
+                            <div className="fw-semibold">
+                              {t.origin_label} → {t.destination_label}
+                            </div>
+                            <div className="text-muted mono" style={{ fontSize: "0.72rem" }}>
+                              Created {formatDateTime(t.created_at)}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="mono small">{formatDateTime(t.departure_time)}</td>

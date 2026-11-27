@@ -7,6 +7,7 @@ import {
   Navigation,
   Scale,
   SlidersHorizontal,
+  Truck,
 } from "lucide-react";
 import { getDefaultDepartureInputs } from "../utils/formatters";
 
@@ -281,11 +282,7 @@ export default function PlannerForm({ onSubmit, isLoading, initialValues }) {
             >
               {isLoading ? (
                 <>
-                  <span
-                    className="spinner-border spinner-border-sm"
-                    role="status"
-                    aria-hidden="true"
-                  />
+                  <Truck size={15} className="truck-btn-pulse" aria-hidden="true" />
                   <span>Evaluating Routes & Weather...</span>
                 </>
               ) : (

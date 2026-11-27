@@ -16,12 +16,15 @@ import RouteMap from "../components/RouteMap";
 import CheckpointPanel from "../components/CheckpointPanel";
 import WeatherCharts from "../components/WeatherCharts";
 import RiskBadge from "../components/RiskBadge";
+import TruckPhoto from "../components/TruckPhoto";
+import { useLoadingContext } from "../context/LoadingContext";
 import { useRouteWorkspace } from "../hooks/useRouteWorkspace";
 import { formatDateTime, formatDistance, formatDuration, formatWeight } from "../utils/formatters";
 
 export default function RoutePlannerPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const loadingCtx = useLoadingContext();
   const workspace = useRouteWorkspace(tripId);
 
   const {
@@ -47,7 +50,9 @@ export default function RoutePlannerPage() {
   } = workspace;
 
   const handlePlanSubmit = async (payload) => {
-    const created = await submitPlan(payload);
+    const created = await (loadingCtx
+      ? loadingCtx.runWithPlanningLoader(() => submitPlan(payload))
+      : submitPlan(payload));
     if (created?.id) {
       navigate(`/planner/${created.id}`, { replace: true });
     }
@@ -59,11 +64,21 @@ export default function RoutePlannerPage() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div>
-        <h1 className="h4 fw-bold mb-1">Weather-Aware Truck Route Planner</h1>
-        <p className="text-secondary small mb-0">
-          Compare up to 3 HGV routes with ETA-synchronized weather checkpoints, load-specific wind rules, and 0–48h corridor heatmaps.
-        </p>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <h1 className="h4 fw-bold mb-1">Weather-Aware Truck Route Planner</h1>
+          <p className="text-secondary small mb-0">
+            Compare up to 3 HGV routes with ETA-synchronized weather checkpoints, load-specific wind rules, and 0–48h corridor heatmaps.
+          </p>
+        </div>
+        <div className="planner-truck-chip d-none d-md-block">
+          <TruckPhoto
+            src="/images/weather-haul.jpg"
+            alt="US Class-8 semi-truck operating under corridor weather conditions"
+            eager
+          />
+          <span className="planner-truck-chip-label">US Freight Watch</span>
+        </div>
       </div>
 
       <PlannerForm onSubmit={handlePlanSubmit} isLoading={isLoading} />
@@ -78,12 +93,11 @@ export default function RoutePlannerPage() {
         </div>
       )}
 
-      {isLoading && !trip && (
-        <div className="sg-card p-5 text-center">
-          <div className="spinner-border text-primary mb-3" role="status" />
-          <div className="fw-semibold">Generating HGV Corridors & Fetching ETA Forecasts...</div>
-          <div className="text-secondary small mt-1">
-            Resolving coordinates, interpolating checkpoints, and scoring weather hazards.
+      {isLoading && !trip && !loadingCtx?.isPlanning && (
+        <div className="sg-card p-4 text-center" aria-live="polite">
+          <div className="sg-inline-pulse mx-auto mb-2" />
+          <div className="fw-medium small text-secondary">
+            Loading route details...
           </div>
         </div>
       )}
